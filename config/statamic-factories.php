@@ -1,10 +1,13 @@
 <?php
 
 use Panda4man\StatamicFactories\Fields\CheckboxesFieldGenerator;
+use Panda4man\StatamicFactories\Fields\CodeFieldGenerator;
 use Panda4man\StatamicFactories\Fields\ColorFieldGenerator;
 use Panda4man\StatamicFactories\Fields\DateFieldGenerator;
 use Panda4man\StatamicFactories\Fields\FloatFieldGenerator;
+use Panda4man\StatamicFactories\Fields\HiddenFieldGenerator;
 use Panda4man\StatamicFactories\Fields\IntegerFieldGenerator;
+use Panda4man\StatamicFactories\Fields\MarkdownFieldGenerator;
 use Panda4man\StatamicFactories\Fields\RadioFieldGenerator;
 use Panda4man\StatamicFactories\Fields\RangeFieldGenerator;
 use Panda4man\StatamicFactories\Fields\SelectFieldGenerator;
@@ -12,6 +15,8 @@ use Panda4man\StatamicFactories\Fields\TextareaFieldGenerator;
 use Panda4man\StatamicFactories\Fields\TextFieldGenerator;
 use Panda4man\StatamicFactories\Fields\TimeFieldGenerator;
 use Panda4man\StatamicFactories\Fields\ToggleFieldGenerator;
+use Panda4man\StatamicFactories\Fields\WidthFieldGenerator;
+use Panda4man\StatamicFactories\Fields\YamlFieldGenerator;
 
 return [
     'field_generators' => [
@@ -27,6 +32,11 @@ return [
         'time' => TimeFieldGenerator::class,
         'date' => DateFieldGenerator::class,
         'color' => ColorFieldGenerator::class,
+        'hidden' => HiddenFieldGenerator::class,
+        'width' => WidthFieldGenerator::class,
+        'markdown' => MarkdownFieldGenerator::class,
+        'yaml' => YamlFieldGenerator::class,
+        'code' => CodeFieldGenerator::class,
     ],
 
     // skip | null | throw
