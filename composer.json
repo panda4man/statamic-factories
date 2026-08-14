@@ -1,0 +1,50 @@
+{
+    "name": "panda4man/statamic-factories",
+    "description": "Laravel-Eloquent-style factories for Statamic content.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["statamic", "cms", "factories", "testing"],
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^11.0 || ^12.0 || ^13.0",
+        "statamic/cms": "^5.0 || ^6.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0 || ^10.0 || ^11.0",
+        "pestphp/pest": "^3.0",
+        "pestphp/pest-plugin-laravel": "^3.0",
+        "mockery/mockery": "^1.6",
+        "laravel/pint": "^1.16"
+    },
+    "autoload": {
+        "psr-4": {
+            "Panda4man\\StatamicFactories\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Panda4man\\StatamicFactories\\StatamicFactoriesServiceProvider"
+            ]
+        },
+        "statamic": {
+            "slug": "statamic-factories"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "scripts": {
+        "test": "pest"
+    }
+}
