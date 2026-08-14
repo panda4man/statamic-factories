@@ -9,6 +9,13 @@ abstract class Factory implements FactoryContract
 {
     protected int $count = 1;
 
+    /**
+     * True once count() has been called explicitly — distinguishes count(1)
+     * (explicit, must return a collection) from the default of never having
+     * called count() at all (must return a bare entity).
+     */
+    protected bool $countExplicit = false;
+
     /** @var array<int, array|Closure> */
     protected array $states = [];
 
@@ -23,6 +30,7 @@ abstract class Factory implements FactoryContract
     {
         $factory = clone $this;
         $factory->count = $count;
+        $factory->countExplicit = true;
 
         return $factory;
     }
@@ -42,14 +50,19 @@ abstract class Factory implements FactoryContract
 
     /**
      * Compose all applied state() calls, in order, against the given attributes.
+     *
+     * $explicit (the attributes passed to make()/create()) is exposed to each
+     * closure so it can derive values from the caller's final overrides, but
+     * a closure's return value still can't override $explicit — the caller
+     * merges $explicit back on top after resolveStates() runs.
      */
-    protected function resolveStates(array $attributes = []): array
+    protected function resolveStates(array $attributes = [], array $explicit = []): array
     {
         return array_reduce(
             $this->states,
             fn (array $carry, array|Closure $state) => array_merge(
                 $carry,
-                $state instanceof Closure ? $state($carry) : $state,
+                $state instanceof Closure ? $state(array_merge($carry, $explicit)) : $state,
             ),
             $attributes,
         );

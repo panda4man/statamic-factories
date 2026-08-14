@@ -5,6 +5,7 @@ namespace Panda4man\StatamicFactories\Factories;
 use Illuminate\Support\Collection as SupportCollection;
 use LogicException;
 use Panda4man\StatamicFactories\Blueprints\BlueprintInspector;
+use Panda4man\StatamicFactories\Blueprints\FieldSchema;
 use Panda4man\StatamicFactories\Fields\FieldGeneratorRegistry;
 use Panda4man\StatamicFactories\Persistence\EntryPersister;
 use Panda4man\StatamicFactories\Support\FactoryContext;
@@ -56,8 +57,12 @@ class EntryFactory extends Factory
 
     public function make(array $attributes = []): mixed
     {
-        if ($this->count > 1) {
-            return SupportCollection::times($this->count, fn () => $this->makeOne($attributes));
+        if ($this->countExplicit) {
+            $usedSlugs = [];
+
+            return SupportCollection::times(max($this->count, 0), function () use ($attributes, &$usedSlugs) {
+                return $this->makeOne($attributes, $usedSlugs);
+            });
         }
 
         return $this->makeOne($attributes);
@@ -67,14 +72,26 @@ class EntryFactory extends Factory
     {
         $persister = app(EntryPersister::class);
 
-        if ($this->count > 1) {
-            return SupportCollection::times($this->count, fn () => $persister->persist($this->makeOne($attributes)));
+        if ($this->countExplicit) {
+            $usedSlugs = [];
+
+            return SupportCollection::times(max($this->count, 0), function () use ($attributes, &$usedSlugs, $persister) {
+                return $persister->persist($this->makeOne($attributes, $usedSlugs));
+            });
         }
 
         return $persister->persist($this->makeOne($attributes));
     }
 
-    protected function makeOne(array $attributes): EntryContract
+    /**
+     * @param  array<int, string>  $usedSlugs  Slugs already produced in this
+     *                                         count() batch, passed by reference so
+     *                                         colliding slugs (e.g. a fixed explicit
+     *                                         title across count(n)) get disambiguated
+     *                                         instead of silently overwriting each
+     *                                         other on save.
+     */
+    protected function makeOne(array $attributes, array &$usedSlugs = []): EntryContract
     {
         $blueprint = $this->resolvedBlueprint();
         $schema = (new BlueprintInspector)->inspect($blueprint);
@@ -83,24 +100,70 @@ class EntryFactory extends Factory
 
         $base = [];
         foreach ($schema->fields() as $handle => $field) {
-            $base[$handle] = $field->default ?? $registry->resolve($field->type)?->generate($field, $context);
+            if ($field->default === null && $registry->shouldSkip($field->type)) {
+                continue;
+            }
+
+            $generated = $registry->resolve($field->type)?->generate($field, $context);
+            $base[$handle] = $generated ?? $field->default;
+        }
+
+        // Statamic auto-injects a title field into every collection blueprint's
+        // published fields; resolvedBlueprint() deliberately bypasses that
+        // auto-injection (see its comment), so a blueprint that never declares
+        // title explicitly would otherwise silently produce a title-less,
+        // slug-less entry. Synthesize it directly through the same generator
+        // path used for a declared field.
+        if (! array_key_exists('title', $base)) {
+            $titleField = new FieldSchema(handle: 'title', type: 'text', required: true, default: null, rules: [], config: []);
+            $base['title'] = $registry->resolve('text')?->generate($titleField, $context);
         }
 
         $data = array_merge($base, $this->definition());
-        $data = $this->resolveStates($data);
+        $data = $this->resolveStates($data, $attributes);
         $data = array_merge($data, $attributes);
 
-        $slug = $data['slug'] ?? (isset($data['title']) ? Str::slug($data['title']) : null);
+        $missing = $schema->fields()
+            ->filter(fn (FieldSchema $field) => $field->required && (! array_key_exists($field->handle, $data) || $data[$field->handle] === null))
+            ->keys();
+
+        if ($missing->isNotEmpty()) {
+            throw new RequiredFieldMissingException($blueprint->handle(), $missing->all());
+        }
+
+        $explicitSlug = array_key_exists('slug', $data) ? $data['slug'] : null;
+        $slug = ($explicitSlug !== null && $explicitSlug !== '')
+            ? $explicitSlug
+            : (isset($data['title']) ? Str::slug($data['title']) : null);
         unset($data['slug']);
+
+        if ($slug !== null && $slug !== '') {
+            $original = $slug;
+            $suffix = 2;
+
+            while (in_array($slug, $usedSlugs, true)) {
+                $slug = $original.'-'.$suffix;
+                $suffix++;
+            }
+
+            $usedSlugs[] = $slug;
+        }
+
+        $published = array_key_exists('published', $data)
+            ? (bool) $data['published']
+            : config('statamic-factories.default_published', true);
+        unset($data['published']);
 
         $entry = Entry::make()
             ->collection($this->collectionHandle())
             ->blueprint($blueprint)
             ->data($data);
 
-        if ($slug) {
+        if ($slug !== null && $slug !== '') {
             $entry->slug($slug);
         }
+
+        $entry->published($published);
 
         return $entry;
     }

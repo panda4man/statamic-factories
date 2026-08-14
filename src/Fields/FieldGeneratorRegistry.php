@@ -9,9 +9,7 @@ class FieldGeneratorRegistry
 {
     protected array $generators = [];
 
-    public function __construct(protected Container $container)
-    {
-    }
+    public function __construct(protected Container $container) {}
 
     public function register(string $type, FieldGenerator|string $generator): void
     {
@@ -32,6 +30,17 @@ class FieldGeneratorRegistry
         $generator = $this->generators[$type];
 
         return is_string($generator) ? $this->container->make($generator) : $generator;
+    }
+
+    /**
+     * True when the fieldtype has no registered generator and the configured
+     * behavior is 'skip' — the caller should omit the field entirely rather
+     * than resolve() it (which returns null indistinguishably for 'skip' and
+     * 'null' behavior).
+     */
+    public function shouldSkip(string $type): bool
+    {
+        return ! $this->has($type) && config('statamic-factories.unsupported_fieldtype_behavior') === 'skip';
     }
 
     protected function handleUnsupported(string $type): ?FieldGenerator

@@ -18,3 +18,12 @@ it('state() always wins over the generated value, regardless of the Faker seed',
 
     expect($entries->every(fn ($entry) => $entry->get('featured') === true))->toBeTrue();
 });
+
+it('lets a state closure derive its value from an explicit attribute passed to create()', function () {
+    $entry = EntryFactory::collection('services')
+        ->state(fn (array $attrs) => ['description' => 'Title is: '.$attrs['title']])
+        ->create(['title' => 'Landscaping']);
+
+    expect($entry->get('description'))->toBe('Title is: Landscaping')
+        ->and($entry->get('title'))->toBe('Landscaping');
+});

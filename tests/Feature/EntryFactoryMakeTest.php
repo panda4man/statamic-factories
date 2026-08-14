@@ -22,7 +22,8 @@ it('generates valid in-memory data for every blueprint field without persisting'
     expect($entry)->toBeInstanceOf(EntryContract::class)
         ->and($entry->get('title'))->toBeString()->not->toBeEmpty()
         ->and($entry->get('description'))->toBeString()->not->toBeEmpty()
-        ->and($entry->get('duration'))->toBe(42) // blueprint default wins over the generator
+        // the field has a registered generator, so it overrides the blueprint default (see EntryFactoryDefaultPrecedenceTest)
+        ->and($entry->get('duration'))->toBeInt()->toBeGreaterThanOrEqual(1)->toBeLessThanOrEqual(1000)
         ->and($entry->get('featured'))->toBeBool();
 });
 

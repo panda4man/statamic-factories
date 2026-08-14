@@ -17,7 +17,8 @@ it('persists via create() and auto-resolves the blueprint from the real collecti
     expect($entry->id())->not->toBeNull()
         ->and(Entry::find($entry->id())->id())->toBe($entry->id())
         ->and($entry->get('title'))->toBeString()->not->toBeEmpty()
-        ->and($entry->get('duration'))->toBe(42);
+        // duration has a registered generator, so it overrides the blueprint's default(42)
+        ->and($entry->get('duration'))->toBeInt()->toBeGreaterThanOrEqual(1)->toBeLessThanOrEqual(1000);
 });
 
 it('returns a distinct, independently persisted entry for each item in count()', function () {
