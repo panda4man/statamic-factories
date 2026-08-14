@@ -16,6 +16,10 @@ class StatamicFactoriesServiceProvider extends AddonServiceProvider
 
     public function bootAddon()
     {
-        //
+        $registry = $this->app->make(FieldGeneratorRegistry::class);
+
+        foreach (config('statamic-factories.field_generators', []) as $type => $generator) {
+            $registry->register($type, $generator);
+        }
     }
 }
