@@ -13,6 +13,7 @@ use Statamic\Facades\Blueprint as BlueprintFacade;
 use Statamic\Facades\Collection;
 use Statamic\Facades\Entry;
 use Statamic\Fields\Blueprint;
+use Statamic\Support\Str;
 
 class EntryFactory extends Factory
 {
@@ -72,10 +73,19 @@ class EntryFactory extends Factory
         $data = $this->resolveStates($data);
         $data = array_merge($data, $attributes);
 
-        return Entry::make()
+        $slug = $data['slug'] ?? (isset($data['title']) ? Str::slug($data['title']) : null);
+        unset($data['slug']);
+
+        $entry = Entry::make()
             ->collection($this->collectionHandle)
             ->blueprint($blueprint)
             ->data($data);
+
+        if ($slug) {
+            $entry->slug($slug);
+        }
+
+        return $entry;
     }
 
     protected function resolvedBlueprint(): Blueprint
