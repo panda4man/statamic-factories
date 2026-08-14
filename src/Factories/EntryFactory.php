@@ -17,7 +17,15 @@ use Statamic\Support\Str;
 
 class EntryFactory extends Factory
 {
+    /**
+     * Set by ::collection(), takes precedence over $collection.
+     */
     protected ?string $collectionHandle = null;
+
+    /**
+     * Overridable by class-based factory subclasses as an alternative to ::collection().
+     */
+    protected ?string $collection = null;
 
     protected ?Blueprint $blueprint = null;
 
@@ -27,6 +35,15 @@ class EntryFactory extends Factory
         $factory->collectionHandle = $handle;
 
         return $factory;
+    }
+
+    protected function collectionHandle(): string
+    {
+        if (! $handle = $this->collectionHandle ?? $this->collection) {
+            throw new LogicException('No collection specified. Use ::collection() or declare a $collection property on your factory class.');
+        }
+
+        return $handle;
     }
 
     public function blueprint(Blueprint $blueprint): static
@@ -62,7 +79,7 @@ class EntryFactory extends Factory
         $blueprint = $this->resolvedBlueprint();
         $schema = (new BlueprintInspector)->inspect($blueprint);
         $registry = app(FieldGeneratorRegistry::class);
-        $context = new FactoryContext(collectionHandle: $this->collectionHandle, blueprintHandle: $blueprint->handle());
+        $context = new FactoryContext(collectionHandle: $this->collectionHandle(), blueprintHandle: $blueprint->handle());
 
         $base = [];
         foreach ($schema->fields() as $handle => $field) {
@@ -77,7 +94,7 @@ class EntryFactory extends Factory
         unset($data['slug']);
 
         $entry = Entry::make()
-            ->collection($this->collectionHandle)
+            ->collection($this->collectionHandle())
             ->blueprint($blueprint)
             ->data($data);
 
@@ -94,8 +111,10 @@ class EntryFactory extends Factory
             return $this->blueprint;
         }
 
-        if (! Collection::findByHandle($this->collectionHandle)) {
-            throw new LogicException("No blueprint could be resolved for collection [{$this->collectionHandle}]. Pass one explicitly via ->blueprint().");
+        $handle = $this->collectionHandle();
+
+        if (! Collection::findByHandle($handle)) {
+            throw new LogicException("No blueprint could be resolved for collection [{$handle}]. Pass one explicitly via ->blueprint().");
         }
 
         // Deliberately resolved directly via Blueprint::in() rather than
@@ -105,11 +124,11 @@ class EntryFactory extends Factory
         // are ever lazily hydrated, silently truncating the blueprint down
         // to just the injected title/slug fields. We don't need that
         // auto-injection here — title/slug handling is done ourselves.
-        $blueprints = BlueprintFacade::in('collections/'.$this->collectionHandle);
+        $blueprints = BlueprintFacade::in('collections/'.$handle);
         $blueprint = $blueprints->reject->hidden()->first() ?? $blueprints->first();
 
         if (! $blueprint) {
-            throw new LogicException("No blueprint could be resolved for collection [{$this->collectionHandle}]. Pass one explicitly via ->blueprint().");
+            throw new LogicException("No blueprint could be resolved for collection [{$handle}]. Pass one explicitly via ->blueprint().");
         }
 
         return $blueprint;
