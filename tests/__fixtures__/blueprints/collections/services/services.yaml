@@ -1,0 +1,13 @@
+title: Services
+tabs:
+  main:
+    display: Main
+    fields:
+      - handle: title
+        field: { type: text, required: true }
+      - handle: description
+        field: { type: textarea }
+      - handle: duration
+        field: { type: integer, default: 42 }
+      - handle: featured
+        field: { type: toggle }

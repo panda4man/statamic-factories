@@ -2,11 +2,15 @@
 
 namespace Panda4man\StatamicFactories\Factories;
 
+use Illuminate\Support\Collection as SupportCollection;
 use LogicException;
 use Panda4man\StatamicFactories\Blueprints\BlueprintInspector;
 use Panda4man\StatamicFactories\Fields\FieldGeneratorRegistry;
+use Panda4man\StatamicFactories\Persistence\EntryPersister;
 use Panda4man\StatamicFactories\Support\FactoryContext;
 use Statamic\Contracts\Entries\Entry as EntryContract;
+use Statamic\Facades\Blueprint as BlueprintFacade;
+use Statamic\Facades\Collection;
 use Statamic\Facades\Entry;
 use Statamic\Fields\Blueprint;
 
@@ -34,12 +38,22 @@ class EntryFactory extends Factory
 
     public function make(array $attributes = []): mixed
     {
+        if ($this->count > 1) {
+            return SupportCollection::times($this->count, fn () => $this->makeOne($attributes));
+        }
+
         return $this->makeOne($attributes);
     }
 
     public function create(array $attributes = []): mixed
     {
-        throw new LogicException('EntryFactory::create() is not yet implemented.');
+        $persister = app(EntryPersister::class);
+
+        if ($this->count > 1) {
+            return SupportCollection::times($this->count, fn () => $persister->persist($this->makeOne($attributes)));
+        }
+
+        return $persister->persist($this->makeOne($attributes));
     }
 
     protected function makeOne(array $attributes): EntryContract
@@ -70,6 +84,24 @@ class EntryFactory extends Factory
             return $this->blueprint;
         }
 
-        throw new LogicException('No blueprint could be resolved. Pass one explicitly via ->blueprint(), or resolve automatically from the collection (see create()).');
+        if (! Collection::findByHandle($this->collectionHandle)) {
+            throw new LogicException("No blueprint could be resolved for collection [{$this->collectionHandle}]. Pass one explicitly via ->blueprint().");
+        }
+
+        // Deliberately resolved directly via Blueprint::in() rather than
+        // Collection::entryBlueprint()/entryBlueprints(): calling the
+        // collection's ensureEntryBlueprintFields() on a freshly file-loaded
+        // blueprint resets its Blink content cache before the file contents
+        // are ever lazily hydrated, silently truncating the blueprint down
+        // to just the injected title/slug fields. We don't need that
+        // auto-injection here — title/slug handling is done ourselves.
+        $blueprints = BlueprintFacade::in('collections/'.$this->collectionHandle);
+        $blueprint = $blueprints->reject->hidden()->first() ?? $blueprints->first();
+
+        if (! $blueprint) {
+            throw new LogicException("No blueprint could be resolved for collection [{$this->collectionHandle}]. Pass one explicitly via ->blueprint().");
+        }
+
+        return $blueprint;
     }
 }
